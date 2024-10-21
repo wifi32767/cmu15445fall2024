@@ -73,6 +73,8 @@ class FrameHeader {
   /** @brief The frame ID / index of the frame this header represents. */
   const frame_id_t frame_id_;
 
+  /** @brief The page ID of the page that this frame holds. */
+  const page_id_t page_id_;
   /** @brief The readers / writer latch for this frame. */
   std::shared_mutex rwlatch_;
 
@@ -96,7 +98,6 @@ class FrameHeader {
    * currently storing. This might allow you to skip searching for the corresponding (page ID, frame ID) pair somewhere
    * else in the buffer pool manager...
    */
-  const page_id_t page_id_;
 };
 
 /**
@@ -179,5 +180,7 @@ class BufferPoolManager {
   auto AllocateFrame(page_id_t page_id) -> std::optional<frame_id_t>;
 
   auto FlushPageWithoutLock(page_id_t page_id) -> bool;
+
+  std::atomic<bool> flushing_{false};
 };
 }  // namespace bustub
