@@ -21,7 +21,10 @@ namespace bustub {
  *
  * @param frame_id The frame ID / index of the frame we are creating a header for.
  */
-FrameHeader::FrameHeader(frame_id_t frame_id) : frame_id_(frame_id), data_(BUSTUB_PAGE_SIZE, 0) { Reset(); }
+FrameHeader::FrameHeader(frame_id_t frame_id, page_id_t page_id)
+    : frame_id_(frame_id), page_id_(page_id), data_(BUSTUB_PAGE_SIZE, 0) {
+  Reset();
+}
 
 /**
  * @brief Get a raw const pointer to the frame's data.
@@ -89,7 +92,7 @@ BufferPoolManager::BufferPoolManager(size_t num_frames, DiskManager *disk_manage
   // Initialize all of the frame headers, and fill the free frame list with all possible frame IDs (since all frames are
   // initially free).
   for (size_t i = 0; i < num_frames_; i++) {
-    frames_.push_back(std::make_shared<FrameHeader>(i));
+    frames_.push_back(std::make_shared<FrameHeader>(i, INVALID_PAGE_ID));
     free_frames_.push_back(static_cast<int>(i));
   }
 }
@@ -329,6 +332,50 @@ void BufferPoolManager::FlushAllPages() { UNIMPLEMENTED("TODO(P1): Add implement
  */
 auto BufferPoolManager::GetPinCount(page_id_t page_id) -> std::optional<size_t> {
   UNIMPLEMENTED("TODO(P1): Add implementation.");
+}
+
+auto BufferPoolManager::AllocatePage() -> page_id_t {
+  return next_page_id_++;
+}
+
+void BufferPoolManager::DeallocatePage(page_id_t page_id) {
+  auto frame_id = page_table_[page_id];
+  if (frames_[frame_id]->is_dirty_) {
+    FlushPageWithoutLock(page_id);
+  }
+  page_table_.erase(page_id);
+}
+
+auto BufferPoolManager::AllocateFrame(page_id_t page_id) -> std::optional<frame_id_t> {
+  std::optional<frame_id_t> frame_id;
+  if (!free_frames_.empty()) {
+    frame_id = free_frames_.front();
+    free_frames_.pop_front();
+  } else {
+    frame_id = replacer_->Evict();
+    if (!frame_id.has_value()) {
+      return std::nullopt;
+    }
+    DeallocatePage(frames_[*frame_id]->page_id_);
+  }
+  replacer_->RecordAccess(*frame_id);
+  return frame_id;
+}
+
+auto BufferPoolManager::FlushPageWithoutLock(page_id_t page_id) -> bool {
+  if (page_table_.find(page_id) == page_table_.end()) {
+    return false;
+  }
+  auto frame_id = page_table_[page_id];
+  if (frames_[frame_id]->is_dirty_) {
+    auto promise = disk_scheduler_->CreatePromise();
+    auto future = promise.get_future();
+
+    disk_scheduler_->Schedule({true, frames_[frame_id]->GetDataMut(), page_id, std::move(promise)});
+    future.get();
+    frames_[frame_id]->is_dirty_ = false;
+  }
+  return true;
 }
 
 }  // namespace bustub

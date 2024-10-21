@@ -62,12 +62,13 @@ class FrameHeader {
   friend class WritePageGuard;
 
  public:
-  explicit FrameHeader(frame_id_t frame_id);
+  explicit FrameHeader(frame_id_t frame_id, page_id_t page_id);
 
  private:
   auto GetData() const -> const char *;
   auto GetDataMut() -> char *;
   void Reset();
+  auto GetPageId() const -> page_id_t { return page_id_; }
 
   /** @brief The frame ID / index of the frame this header represents. */
   const frame_id_t frame_id_;
@@ -95,6 +96,7 @@ class FrameHeader {
    * currently storing. This might allow you to skip searching for the corresponding (page ID, frame ID) pair somewhere
    * else in the buffer pool manager...
    */
+  const page_id_t page_id_;
 };
 
 /**
@@ -170,5 +172,12 @@ class BufferPoolManager {
    * stored inside of it. Additionally, you may also want to implement a helper function that returns either a shared
    * pointer to a `FrameHeader` that already has a page's data stored inside of it, or an index to said `FrameHeader`.
    */
+  auto AllocatePage() -> page_id_t;
+
+  void DeallocatePage(page_id_t page_id);
+
+  auto AllocateFrame(page_id_t page_id) -> std::optional<frame_id_t>;
+
+  auto FlushPageWithoutLock(page_id_t page_id) -> bool;
 };
 }  // namespace bustub
