@@ -57,7 +57,16 @@ ReadPageGuard::ReadPageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> fra
  */
 ReadPageGuard::ReadPageGuard(ReadPageGuard &&that) noexcept {
   if (this != &that) {
-    *this = std::move(that);
+    page_id_ = that.page_id_;
+    frame_ = std::move(that.frame_);
+    replacer_ = std::move(that.replacer_);
+    bpm_latch_ = std::move(that.bpm_latch_);
+    is_valid_ = that.is_valid_;
+    that.is_valid_ = false;
+    that.frame_ = nullptr;
+    that.bpm_latch_ = nullptr;
+    that.replacer_ = nullptr;
+    that.page_id_ = INVALID_PAGE_ID;
   }
 }
 
@@ -182,7 +191,16 @@ WritePageGuard::WritePageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> f
  */
 WritePageGuard::WritePageGuard(WritePageGuard &&that) noexcept {
   if (this != &that) {
-    *this = std::move(that);
+    page_id_ = that.page_id_;
+    frame_ = std::move(that.frame_);
+    replacer_ = std::move(that.replacer_);
+    bpm_latch_ = std::move(that.bpm_latch_);
+    is_valid_ = that.is_valid_;
+    that.is_valid_ = false;
+    that.frame_ = nullptr;
+    that.bpm_latch_ = nullptr;
+    that.replacer_ = nullptr;
+    that.page_id_ = INVALID_PAGE_ID;
   }
 }
 

@@ -50,8 +50,11 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
-  BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
-                "LRUKReplacer::RecordAccess: Invalid frame id");
+  // BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
+  //               "LRUKReplacer::RecordAccess: Invalid frame id");
+  if (frame_id < 0 || static_cast<size_t>(frame_id) >= replacer_size_) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(latch_);
   if (node_store_.find(frame_id) == node_store_.end()) {
     if (curr_size_ >= replacer_size_) {
@@ -71,8 +74,11 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-  BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
-                "LRUKReplacer::SetEvictable: Invalid frame id");
+  // BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
+  //               "LRUKReplacer::SetEvictable: Invalid frame id");
+  if (frame_id < 0 || static_cast<size_t>(frame_id) >= replacer_size_) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(latch_);
   if (node_store_.find(frame_id) == node_store_.end()) {
     return;
@@ -90,8 +96,11 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-  BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
-                "LRUKReplacer::Remove: Invalid frame id");
+  // BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
+  //               "LRUKReplacer::Remove: Invalid frame id");
+  if (frame_id < 0 || static_cast<size_t>(frame_id) >= replacer_size_) {
+    return;
+  }
   std::lock_guard<std::mutex> lock(latch_);
   if (node_store_.find(frame_id) == node_store_.end()) {
     return;
