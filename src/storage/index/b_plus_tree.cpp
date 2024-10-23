@@ -21,7 +21,11 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, page_id_t header_page_id, BufferPool
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
+  ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
+  auto root_page = guard.As<BPlusTreeHeaderPage>();
+  return root_page->root_page_id_ == INVALID_PAGE_ID;
+}
 
 /*****************************************************************************
  * SEARCH
@@ -35,7 +39,31 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result) -> bool {
   // Declaration of context instance.
   Context ctx;
-  (void)ctx;
+  ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
+  auto root_page = guard.As<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    return false;
+  }
+  auto cur = root_page->root_page_id_;
+  while (cur != INVALID_PAGE_ID){
+    guard = bpm_->ReadPage(cur);
+    auto page = guard.As<BPlusTreePage>();
+    ctx.AddIntoReadSet(std::move(guard));
+    if (page->IsLeafPage()) {
+      auto leaf_page = dynamic_cast<BPlusTreeLeafPage*>(page);
+      int id = leaf_page->ValueIndex(key);
+      if (id == -1) {
+        return false;
+      }
+      result->push_back(leaf_page->ValueAt(id));
+      return true;
+    }
+    else {
+      auto internal_page = dynamic_cast<BPlusTreeInternalPage*>(page);
+      int id = leaf_page->ValueIndex(key);
+      cur = internal_page->ValueAt(id);
+    }
+  }
   return false;
 }
 
@@ -83,7 +111,29 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
+  auto root_page = guard.As<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    return INDEXITERATOR_TYPE();
+  }
+  auto cur = root_page->root_page_id_;
+  while (cur != INVALID_PAGE_ID){
+    guard = bpm_->ReadPage(cur);
+    auto page = guard.As<BPlusTreePage>();
+    ctx.AddIntoReadSet(std::move(guard));
+    if (page->IsLeafPage()) {
+      auto leaf_page = dynamic_cast<BPlusTreeLeafPage*>(page);
+      auto key = leaf_page->KeyAt(0);
+      auto value = leaf_page->ValueAt(0);
+      return INDEXITERATOR_TYPE(key, value, comparator_, bpm_);
+    }
+    else {
+      auto internal_page = dynamic_cast<BPlusTreeInternalPage*>(page);
+      cur = internal_page->ValueAt(0);
+    }
+  }
+}
 
 /*
  * Input parameter is low key, find the leaf page that contains the input key
@@ -105,7 +155,11 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); 
  * @return Page id of the root of this tree
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return 0; }
+auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
+  ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
+  auto root_page = guard.As<BPlusTreeHeaderPage>();
+  return root_page->root_page_id_;
+}
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;
 
