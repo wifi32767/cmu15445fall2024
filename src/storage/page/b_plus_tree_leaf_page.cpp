@@ -28,7 +28,7 @@ namespace bustub {
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(int max_size) {
   SetPageType(IndexPageType::LEAF_PAGE);
-  SetCurrentSize(0);
+  SetSize(0);
   SetMaxSize(max_size);
   SetNextPageId(INVALID_PAGE_ID);
 }
@@ -56,24 +56,8 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int {
-  int lk = 0, rk = GetSize() - 1;
-  while (lk <= rk) {
-    int mid = (lk + rk) / 2;
-    if (KeyAt(mid) > key) {
-      rk = mid - 1;
-    } else if (KeyAt(mid) < key) {
-      lk = mid + 1;
-    } else {
-      return mid;
-    }
-  }
-  return -1;
-}
-
-INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType {
-  return value_array_[index];
+  return rid_array_[index];
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
