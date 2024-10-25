@@ -30,8 +30,6 @@ ReadPageGuard::ReadPageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> fra
                              std::shared_ptr<LRUKReplacer> replacer, std::shared_ptr<std::mutex> bpm_latch)
     : page_id_(page_id), frame_(std::move(frame)), replacer_(std::move(replacer)), bpm_latch_(std::move(bpm_latch)) {
   // printf("ReadPageGuard: get frame_id %d\n", frame_->frame_id_);
-  frame_->rwlatch_.lock_shared();
-  
   is_valid_ = true;
 }
 
@@ -127,14 +125,12 @@ auto ReadPageGuard::IsDirty() const -> bool { return frame_->is_dirty_; }
  */
 void ReadPageGuard::Drop() {
   if (is_valid_) {
-    // printf("ReadDrop: %d\n", page_id_);
     bpm_latch_->lock();
     frame_->pin_count_--;
     if (frame_->pin_count_ == 0) {
       replacer_->SetEvictable(frame_->frame_id_, true);
     }
     bpm_latch_->unlock();
-    // printf("ReadDrop: release frame_id %d\n", frame_->frame_id_);
     is_valid_ = false;
     frame_->rwlatch_.unlock_shared();
   }
@@ -162,8 +158,6 @@ ReadPageGuard::~ReadPageGuard() { Drop(); }
 WritePageGuard::WritePageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> frame,
                                std::shared_ptr<LRUKReplacer> replacer, std::shared_ptr<std::mutex> bpm_latch)
     : page_id_(page_id), frame_(std::move(frame)), replacer_(std::move(replacer)), bpm_latch_(std::move(bpm_latch)) {
-  // printf("WritePageGuard: get frame_id %d\n", frame_->frame_id_);
-  frame_->rwlatch_.lock();
   frame_->is_dirty_ = true;
   is_valid_ = true;
 }
@@ -245,9 +239,7 @@ auto WritePageGuard::GetData() const -> const char * { return frame_->GetData();
 /**
  * @brief Gets a mutable pointer to the page of data this guard is protecting.
  */
-auto WritePageGuard::GetDataMut() -> char * {
-  return frame_->GetDataMut();
-}
+auto WritePageGuard::GetDataMut() -> char * { return frame_->GetDataMut(); }
 
 /**
  * @brief Returns whether the page is dirty (modified but not flushed to the disk).
@@ -275,7 +267,6 @@ void WritePageGuard::Drop() {
     bpm_latch_->unlock();
     is_valid_ = false;
     frame_->rwlatch_.unlock();
-    // printf("WriteDrop: release frame_id %d\n", frame_->frame_id_);
   }
 }
 
