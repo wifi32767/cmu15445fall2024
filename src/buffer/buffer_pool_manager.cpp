@@ -161,17 +161,19 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   bpm_latch_->lock();
   if (page_table_.find(page_id) == page_table_.end()) {
     disk_scheduler_->DeallocatePage(page_id);
+    bpm_latch_->unlock();
     return true;
   }
   auto frame_id = page_table_[page_id];
-  bpm_latch_->unlock();
+  // bpm_latch_->unlock();
   // frames_[frame_id]->rwlatch_.lock();
   if (frames_[frame_id]->pin_count_ > 0) {
+    bpm_latch_->unlock();
     return false;
   }
   // frames_[frame_id]->Reset();
   // frames_[frame_id]->rwlatch_.unlock();
-  bpm_latch_->lock();
+  // bpm_latch_->lock();
   page_table_.erase(page_id);
   free_frames_.push_back(frame_id);
   replacer_->Remove(frame_id);
@@ -447,7 +449,6 @@ auto BufferPoolManager::FlushPageWithoutLock(page_id_t page_id) -> bool {
     return false;
   }
   auto frame_id = page_table_[page_id];
-  std::unique_lock lock(frames_[frame_id]->rwlatch_);
   FlushFrame(frame_id);
   return true;
 }
