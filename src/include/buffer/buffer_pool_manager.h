@@ -175,11 +175,15 @@ class BufferPoolManager {
    */
   auto AllocatePage() -> page_id_t;
 
-  void DeallocatePage(page_id_t page_id);
+  // void DeallocatePage(page_id_t page_id);
 
   auto AllocateFrame(page_id_t page_id) -> std::optional<frame_id_t>;
 
   auto FlushPageWithoutLock(page_id_t page_id) -> bool;
+
+  void FlushFrame(frame_id_t frame_id);
+
+  void VisitFrame(frame_id_t frame_id);
 
   std::atomic<bool> flushing_{false};
 };

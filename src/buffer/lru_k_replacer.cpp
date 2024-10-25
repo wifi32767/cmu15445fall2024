@@ -18,40 +18,39 @@ namespace bustub {
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
+  std::lock_guard<std::mutex> lock(latch_);
   if (curr_size_ == 0) {
     return std::nullopt;
   }
   int val = 0;
   frame_id_t frame_id;
   auto last = std::numeric_limits<uint64_t>::max();
-  {
-    std::lock_guard<std::mutex> lock(latch_);
-    for (auto &[k, v] : node_store_) {
-      if (v.is_evictable_) {
-        int curr_val;
-        if (v.history_.size() < k_) {
-          curr_val = std::numeric_limits<int>::max();
-        } else {
-          curr_val = current_timestamp_ - v.history_.front();
-        }
-        if (curr_val > val || (curr_val == val && v.history_.front() < last)) {
-          val = curr_val;
-          frame_id = k;
-          last = v.history_.front();
-        }
+  for (auto &[k, v] : node_store_) {
+    if (v.is_evictable_) {
+      int curr_val;
+      if (v.history_.size() < k_) {
+        curr_val = std::numeric_limits<int>::max();
+      } else {
+        curr_val = current_timestamp_ - v.history_.front();
+      }
+      if (curr_val > val || (curr_val == val && v.history_.front() < last)) {
+        val = curr_val;
+        frame_id = k;
+        last = v.history_.front();
       }
     }
   }
   if (val == 0) {
     return std::nullopt;
   }
-  Remove(frame_id);
+  curr_size_--;
+  node_store_.erase(frame_id);
   return frame_id;
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
-  // BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
-  //               "LRUKReplacer::RecordAccess: Invalid frame id");
+  BUSTUB_ENSURE((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
+                "LRUKReplacer::RecordAccess: Invalid frame id");
   if (frame_id < 0 || static_cast<size_t>(frame_id) >= replacer_size_) {
     return;
   }
@@ -74,8 +73,8 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-  // BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
-  //               "LRUKReplacer::SetEvictable: Invalid frame id");
+  BUSTUB_ENSURE((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
+                "LRUKReplacer::SetEvictable: Invalid frame id");
   if (frame_id < 0 || static_cast<size_t>(frame_id) >= replacer_size_) {
     return;
   }
@@ -96,11 +95,8 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
-  // BUSTUB_ASSERT((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
-  //               "LRUKReplacer::Remove: Invalid frame id");
-  if (frame_id < 0 || static_cast<size_t>(frame_id) >= replacer_size_) {
-    return;
-  }
+  BUSTUB_ENSURE((frame_id >= 0) && (static_cast<size_t>(frame_id) < replacer_size_),
+                "LRUKReplacer::Remove: Invalid frame id");
   std::lock_guard<std::mutex> lock(latch_);
   if (node_store_.find(frame_id) == node_store_.end()) {
     return;

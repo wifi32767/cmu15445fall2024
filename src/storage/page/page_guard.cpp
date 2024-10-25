@@ -29,14 +29,7 @@ namespace bustub {
 ReadPageGuard::ReadPageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> frame,
                              std::shared_ptr<LRUKReplacer> replacer, std::shared_ptr<std::mutex> bpm_latch)
     : page_id_(page_id), frame_(std::move(frame)), replacer_(std::move(replacer)), bpm_latch_(std::move(bpm_latch)) {
-  frame_->rwlatch_.lock_shared();
-  replacer_->RecordAccess(frame_->frame_id_);
-  bpm_latch_->lock();
-  if (frame_->pin_count_ == 0) {
-    replacer_->SetEvictable(frame_->frame_id_, false);
-  }
-  frame_->pin_count_++;
-  bpm_latch_->unlock();
+  // printf("ReadPageGuard: get frame_id %d\n", frame_->frame_id_);
   is_valid_ = true;
 }
 
@@ -165,12 +158,7 @@ ReadPageGuard::~ReadPageGuard() { Drop(); }
 WritePageGuard::WritePageGuard(page_id_t page_id, std::shared_ptr<FrameHeader> frame,
                                std::shared_ptr<LRUKReplacer> replacer, std::shared_ptr<std::mutex> bpm_latch)
     : page_id_(page_id), frame_(std::move(frame)), replacer_(std::move(replacer)), bpm_latch_(std::move(bpm_latch)) {
-  frame_->rwlatch_.lock();
-  replacer_->RecordAccess(frame_->frame_id_);
-  if (frame_->pin_count_ == 0) {
-    replacer_->SetEvictable(frame_->frame_id_, false);
-  }
-  frame_->pin_count_++;
+  frame_->is_dirty_ = true;
   is_valid_ = true;
 }
 
@@ -251,10 +239,7 @@ auto WritePageGuard::GetData() const -> const char * { return frame_->GetData();
 /**
  * @brief Gets a mutable pointer to the page of data this guard is protecting.
  */
-auto WritePageGuard::GetDataMut() -> char * {
-  frame_->is_dirty_ = true;
-  return frame_->GetDataMut();
-}
+auto WritePageGuard::GetDataMut() -> char * { return frame_->GetDataMut(); }
 
 /**
  * @brief Returns whether the page is dirty (modified but not flushed to the disk).
@@ -274,10 +259,12 @@ auto WritePageGuard::IsDirty() const -> bool { return frame_->is_dirty_; }
  */
 void WritePageGuard::Drop() {
   if (is_valid_) {
+    bpm_latch_->lock();
     frame_->pin_count_--;
     if (frame_->pin_count_ == 0) {
       replacer_->SetEvictable(frame_->frame_id_, true);
     }
+    bpm_latch_->unlock();
     is_valid_ = false;
     frame_->rwlatch_.unlock();
   }
