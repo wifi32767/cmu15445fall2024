@@ -40,6 +40,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   // Declaration of context instance.
   Context ctx;
   ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
+  ctx.AddIntoReadSet(std::move(guard));
   auto root_page = guard.As<BPlusTreeHeaderPage>();
   if (root_page->root_page_id_ == INVALID_PAGE_ID) {
     return false;
@@ -57,10 +58,8 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
       result->push_back(reinterpret_cast<const LeafPage*>(page)->ValueAt(id));
       return true;
     }
-    else {
-      int id = KeyIndex(page, key);
-      cur = reinterpret_cast<const InternalPage*>(page)->ValueAt(id);
-    }
+    int id = KeyIndex(page, key);
+    cur = reinterpret_cast<const InternalPage*>(page)->ValueAt(id);
   }
   return false;
 }
@@ -79,8 +78,80 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool {
   // Declaration of context instance.
   Context ctx;
-  (void)ctx;
-  return false;
+  WritePageGuard guard = bpm_->WritePage(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  ctx.AddIntoWriteSet(std::move(guard));
+  // 没有节点
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    auto new_page_id = bpm_->NewPage();
+    guard = bpm_->WritePage(new_page_id);
+    auto leaf_page = guard.AsMut<LeafPage>();
+    leaf_page->Init(leaf_max_size_);
+    root_page->root_page_id_ = new_page_id;
+    leaf_page->Insert(0, key, value);
+    return true;
+  }
+  // 找到对应叶子
+  auto cur = root_page->root_page_id_;
+  auto page = guard.AsMut<BPlusTreePage>();
+  while (!page->IsLeafPage()) {
+    int id = KeyIndex(page, key);
+    cur = reinterpret_cast<const InternalPage*>(page)->ValueAt(id);
+    guard = bpm_->WritePage(cur);
+    page = guard.AsMut<BPlusTreePage>();
+    ctx.AddIntoWriteSet(std::move(guard));
+  }
+  auto leaf_page = reinterpret_cast<LeafPage*>(page);
+  int id = KeyIndex(page, key);
+  if (id < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(id), key) == 0) {
+    return false;
+  }
+  leaf_page->Insert(id, key, value);
+  // 分裂
+  struct {
+    page_id_t left_id;
+    page_id_t right_id;
+    KeyType key;
+  } split;
+  while (page->GetSize() > page->GetMaxSize()) {
+    if (page->IsLeafPage()) {
+      auto right_id = bpm_->NewPage();
+      guard = bpm_->WritePage(right_id);
+      auto right_page = guard.AsMut<LeafPage>();
+      right_page->Init(leaf_max_size_);
+      right_page->SetNextPageId(leaf_page->GetNextPageId());
+      leaf_page->SetNextPageId(right_id);
+      right_page->SetParentPageId(leaf_page->GetParentPageId());
+      int right_size = leaf_page->GetSize() - leaf_page->GetMinSize();
+      for (int i = 0; i < right_size; i ++){
+        right_page->Insert(i, leaf_page->KeyAt(i + leaf_page->GetMinSize()), leaf_page->ValueAt(i + leaf_page->GetMinSize()));
+      }
+      right_page->SetSize(right_size);
+      leaf_page->SetSize(leaf_page->GetMinSize());
+      // 如果是根节点
+      if (ctx.write_set_.empty()) {
+        auto pre_id = bpm_->NewPage();
+        auto pre_guard = bpm_->WritePage(pre_id);
+        auto pre_page = pre_guard.AsMut<InternalPage>();
+        pre_page->Init(internal_max_size_);
+        pre_page->InsertKey(0, right_page->KeyAt(0));
+        pre_page->InsertValue(0, cur);
+        pre_page->InsertValue(1, right_id);
+        leaf_page->SetParentPageId(pre_id);
+        right_page->SetParentPageId(pre_id);
+        pre_page->SetParentPageId(INVALID_PAGE_ID);
+        root_page->root_page_id_ = pre_id;
+        return true;
+      }
+      guard = std::move(ctx.write_set_.back());
+      page = guard.AsMut<BPlusTreePage>();
+      ctx.write_set_.pop_back();
+      split = {cur, right_id, right_page->KeyAt(0)};
+    } else {
+      // auto internal_page = reinterpret_cast<InternalPage*>(page);
+    }
+  }
+  return true;
 }
 
 /*****************************************************************************
@@ -163,33 +234,62 @@ auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::KeyIndex(const BPlusTreePage* page, const KeyType &key) -> int {
-  int lk = 0, rk = page->GetSize() - 1;
+  // 对于叶子节点，返回的位置是大于等于key的最小的位置
   if (page->IsLeafPage()) {
     auto leaf_page = reinterpret_cast<const LeafPage*>(page);
-    while (lk <= rk) {
-      int mid = (lk + rk) / 2;
-      if (comparator_(leaf_page->KeyAt(mid), key) < 0) {
-        lk = mid + 1;
-      } else if (comparator_(leaf_page->KeyAt(mid), key) > 0) {
-        rk = mid - 1;
-      } else {
-        return mid;
+    for (int i = 0; i < leaf_page->GetSize(); i++) {
+      if (comparator_(leaf_page->KeyAt(i), key) >= 0) {
+        return i;
       }
     }
-    return -1;
+    return leaf_page->GetSize();
   }
+  // 对于内部节点，返回的位置是小于等于key的最大的位置
   else {
     auto internal_page = reinterpret_cast<const InternalPage*>(page);
-    while (lk < rk) {
-      int mid = (lk + rk + 1) / 2;
-      if (comparator_(key, internal_page->KeyAt(mid)) < 0) {
-        rk = mid - 1;
-      } else {
-        lk = mid;
+    for (int i = internal_page->GetSize(); i > 0; i --) {
+      if (comparator_(internal_page->KeyAt(i - 1), key) <= 0) {
+        return i;
       }
     }
-    return lk;
+    return 0;
   }
+  // 理论上二分的效率更高
+  // 但是通常使用的时候，maxSize都会设置的比较小
+  // 所以直接遍历查找不容易错，说不定还会更快
+  // int lk = 0, rk = page->GetSize() - 1;
+  // if (page->IsLeafPage()) {
+  //   auto leaf_page = reinterpret_cast<const LeafPage*>(page);
+  //   if (comparator_(key, leaf_page->KeyAt(rk)) > 0) {
+  //     return page->GetSize();
+  //   }
+  //   while (lk < rk) {
+  //     int mid = (lk + rk) / 2;
+  //     if (comparator_(leaf_page->KeyAt(mid), key) < 0) {
+  //       lk = mid + 1;
+  //     }
+  //     else {
+  //       rk = mid;
+  //     }
+  //   }
+  //   return lk
+  // }
+  // else {
+  //   auto internal_page = reinterpret_cast<const InternalPage*>(page);
+  //   if comparator_(key, internal_page->KeyAt(0)) < 0 {
+  //     return 0;
+  //   }
+  //   while (lk < rk) {
+  //     int mid = (lk + rk + 1) / 2;
+  //     if (comparator_(internal_page->KeyAt(mid), key) <= 0) {
+  //       lk = mid;
+  //     }
+  //     else{
+  //       rk = mid - 1;
+  //     }
+  //   }
+  //   return lk + 1;
+  // }
 }
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;

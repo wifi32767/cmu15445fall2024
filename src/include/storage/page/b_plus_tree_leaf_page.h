@@ -47,6 +47,9 @@ namespace bustub {
  *  -----------------
  */
 INDEX_TEMPLATE_ARGUMENTS
+class BPlusTree;
+
+INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeLeafPage : public BPlusTreePage {
  public:
   // Delete all constructor / destructor to ensure memory safety
@@ -90,13 +93,15 @@ class BPlusTreeLeafPage : public BPlusTreePage {
 
     return kstr;
   }
-
+  
+  void Insert(int index, const KeyType &key, const ValueType &value);
  private:
   page_id_t next_page_id_;
   // Array members for page data.
   KeyType key_array_[LEAF_PAGE_SLOT_CNT];
   ValueType rid_array_[LEAF_PAGE_SLOT_CNT];
   // (Fall 2024) Feel free to add more fields and helper functions below if needed
+ 
 };
 
 }  // namespace bustub

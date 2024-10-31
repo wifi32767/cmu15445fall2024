@@ -57,4 +57,12 @@ auto BPlusTreePage::GetMinSize() const -> int {
   return max_size_ / 2;
 }
 
+auto BPlusTreePage::GetParentPageId() const -> page_id_t {
+  return parent_page_id_;
+}
+
+void BPlusTreePage::SetParentPageId(page_id_t parent_page_id) {
+  parent_page_id_ = parent_page_id;
+}
+
 }  // namespace bustub

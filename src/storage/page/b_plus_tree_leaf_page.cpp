@@ -31,6 +31,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(int max_size) {
   SetSize(0);
   SetMaxSize(max_size);
   SetNextPageId(INVALID_PAGE_ID);
+  SetParentPageId(INVALID_PAGE_ID);
 }
 
 /**
@@ -58,6 +59,19 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType {
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType {
   return rid_array_[index];
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(int index, const KeyType &key, const ValueType &value) {
+  BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeLeafPage::Insert: pos is out of range");
+  // 移动插入位置之后的元素
+  for (int i = GetSize(); i > index; i--) {
+    key_array_[i] = key_array_[i - 1];
+    rid_array_[i] = rid_array_[i - 1];
+  }
+  key_array_[index] = key;
+  rid_array_[index] = value;
+  ChangeSizeBy(1);
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

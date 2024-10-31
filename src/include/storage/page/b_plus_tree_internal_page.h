@@ -42,6 +42,9 @@ namespace bustub {
  *  ---------------------------------------------
  */
 INDEX_TEMPLATE_ARGUMENTS
+class BPlusTree;
+
+INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeInternalPage : public BPlusTreePage {
  public:
   // Delete all constructor / destructor to ensure memory safety
@@ -105,11 +108,15 @@ class BPlusTreeInternalPage : public BPlusTreePage {
     return kstr;
   }
 
+  void InsertKey(int index, const KeyType &key);
+  
+  void InsertValue(int index, const ValueType &value);
  private:
   // Array members for page data.
   KeyType key_array_[INTERNAL_PAGE_SLOT_CNT];
   ValueType page_id_array_[INTERNAL_PAGE_SLOT_CNT];
   // (Fall 2024) Feel free to add more fields and helper functions below if needed
+
 };
 
 }  // namespace bustub

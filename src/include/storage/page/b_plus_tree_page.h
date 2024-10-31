@@ -56,6 +56,9 @@ class BPlusTreePage {
   void SetMaxSize(int max_size);
   auto GetMinSize() const -> int;
 
+  auto GetParentPageId() const -> page_id_t;
+  void SetParentPageId(page_id_t parent_page_id);
+
  private:
   // Member variables, attributes that both internal and leaf page share
   IndexPageType page_type_;
@@ -63,6 +66,8 @@ class BPlusTreePage {
   int size_;
   // Max number of key & value pairs in a page
   int max_size_;
+
+  page_id_t parent_page_id_;
 };
 
 }  // namespace bustub

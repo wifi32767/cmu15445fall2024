@@ -28,6 +28,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
   SetPageType(IndexPageType::INTERNAL_PAGE);
   SetSize(0);
   SetMaxSize(max_size);
+  SetParentPageId(INVALID_PAGE_ID);
 }
 /*
  * Helper method to get/set the key associated with input "index" (a.k.a
@@ -46,6 +47,25 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
   return page_id_array_[index];
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertKey(int index, const KeyType &key) {
+  BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeInternalPage::Insert: pos is out of range");
+  for (int i = GetSize(); i > index; i--) {
+    key_array_[i] = key_array_[i - 1];
+  }
+  key_array_[index] = key;
+  ChangeSizeBy(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertValue(int index, const ValueType &value) {
+  BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeInternalPage::Insert: pos is out of range");
+  for (int i = GetSize(); i > index; i--) {
+    page_id_array_[i] = page_id_array_[i - 1];
+  }
+  page_id_array_[index] = value;
 }
 
 // valuetype for internalNode should be page id_t
