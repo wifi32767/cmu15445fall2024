@@ -1,6 +1,6 @@
 #include "storage/index/b_plus_tree.h"
 #include "storage/index/b_plus_tree_debug.h"
-
+using std::cout, std::endl;
 namespace bustub {
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -80,7 +80,6 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   Context ctx;
   WritePageGuard guard = bpm_->WritePage(header_page_id_);
   auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
-  ctx.AddIntoWriteSet(std::move(guard));
   // 没有节点
   if (root_page->root_page_id_ == INVALID_PAGE_ID) {
     auto new_page_id = bpm_->NewPage();
@@ -93,6 +92,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   }
   // 找到对应叶子
   auto cur = root_page->root_page_id_;
+  cout << cur << endl;
+  ctx.AddIntoWriteSet(std::move(guard));
+  guard = bpm_->WritePage(cur);
   auto page = guard.AsMut<BPlusTreePage>();
   while (!page->IsLeafPage()) {
     int id = KeyIndex(page, key);
@@ -116,8 +118,8 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   while (page->GetSize() > page->GetMaxSize()) {
     if (page->IsLeafPage()) {
       auto right_id = bpm_->NewPage();
-      guard = bpm_->WritePage(right_id);
-      auto right_page = guard.AsMut<LeafPage>();
+      auto right_guard = bpm_->WritePage(right_id);
+      auto right_page = right_guard.AsMut<LeafPage>();
       right_page->Init(leaf_max_size_);
       right_page->SetNextPageId(leaf_page->GetNextPageId());
       leaf_page->SetNextPageId(right_id);
@@ -129,14 +131,14 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       right_page->SetSize(right_size);
       leaf_page->SetSize(leaf_page->GetMinSize());
       // 如果是根节点
-      if (ctx.write_set_.empty()) {
+      if (root_page->root_page_id_ == guard.GetPageId()) {
         auto pre_id = bpm_->NewPage();
         auto pre_guard = bpm_->WritePage(pre_id);
         auto pre_page = pre_guard.AsMut<InternalPage>();
         pre_page->Init(internal_max_size_);
-        pre_page->InsertKey(0, right_page->KeyAt(0));
         pre_page->InsertValue(0, cur);
         pre_page->InsertValue(1, right_id);
+        pre_page->InsertKey(1, right_page->KeyAt(0));
         leaf_page->SetParentPageId(pre_id);
         right_page->SetParentPageId(pre_id);
         pre_page->SetParentPageId(INVALID_PAGE_ID);

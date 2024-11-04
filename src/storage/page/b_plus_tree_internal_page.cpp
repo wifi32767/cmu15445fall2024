@@ -51,12 +51,11 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertKey(int index, const KeyType &key) {
-  BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeInternalPage::Insert: pos is out of range");
+  BUSTUB_ENSURE(index >= 0 && index < GetSize(), "BPlusTreeInternalPage::Insert: pos is out of range");
   for (int i = GetSize(); i > index; i--) {
     key_array_[i] = key_array_[i - 1];
   }
   key_array_[index] = key;
-  ChangeSizeBy(1);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -66,6 +65,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertValue(int index, const ValueType &val
     page_id_array_[i] = page_id_array_[i - 1];
   }
   page_id_array_[index] = value;
+  ChangeSizeBy(1);
 }
 
 // valuetype for internalNode should be page id_t
