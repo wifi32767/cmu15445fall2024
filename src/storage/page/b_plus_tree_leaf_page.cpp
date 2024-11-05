@@ -74,6 +74,42 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(int index, const KeyType &key, const Val
   ChangeSizeBy(1);
 }
 
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Remove(int index) {
+  BUSTUB_ENSURE(index >= 0 && index < GetSize(), "BPlusTreeLeafPage::Remove: pos is out of range");
+  for (int i = index; i < GetSize() - 1; i++) {
+    key_array_[i] = key_array_[i + 1];
+    rid_array_[i] = rid_array_[i + 1];
+  }
+  ChangeSizeBy(-1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveFromLeft(int size) {
+  BUSTUB_ASSERT(GetSize() >= size, "BPlusTreeLeafPage::RemoveFromLeft: size is out of range");
+  for (int i = 0; i < GetSize() - size; i++) {
+    key_array_[i] = key_array_[i + size];
+    rid_array_[i] = rid_array_[i + size];
+  }
+  ChangeSizeBy(-size);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveFromRight(int size) {
+  BUSTUB_ASSERT(GetSize() >= size, "BPlusTreeLeafPage::RemoveFromRight: size is out of range");
+  ChangeSizeBy(-size);
+  // pass
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::SetKVs(const KeyType *keys, const ValueType *values, int size) {
+  for (int i = 0; i < size; i++) {
+    key_array_[i] = keys[i];
+    rid_array_[i] = values[i];
+  }
+  SetSize(size);
+}
+
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;
 template class BPlusTreeLeafPage<GenericKey<16>, RID, GenericComparator<16>>;

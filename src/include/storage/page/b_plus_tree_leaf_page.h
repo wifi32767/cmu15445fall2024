@@ -95,6 +95,18 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   }
   
   void Insert(int index, const KeyType &key, const ValueType &value);
+
+  void Remove(int index);
+
+  void RemoveFromLeft(int size);
+
+  void RemoveFromRight(int size);
+
+  void SetKVs(const KeyType* keys, const ValueType* values, int size);
+  
+  auto GetKeys() const -> const KeyType* { return key_array_; }
+
+  auto GetValues() const -> const ValueType* { return rid_array_; }
  private:
   page_id_t next_page_id_;
   // Array members for page data.

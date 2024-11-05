@@ -111,6 +111,26 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void InsertKey(int index, const KeyType &key);
   
   void InsertValue(int index, const ValueType &value);
+
+  void RemoveKey(int index);
+
+  void RemoveValue(int index);
+
+  void RemoveKeysFromLeft(int size);
+
+  void RemoveKeysFromRight(int size);
+
+  void RemoveValuesFromLeft(int size);
+
+  void RemoveValuesFromRight(int size);
+
+  void SetKeys(const KeyType *keys, int keys_size);
+
+  void SetValues(const ValueType *values, int values_size);
+
+  auto GetKeys() const -> const KeyType * { return key_array_; }
+
+  auto GetValues() const -> const ValueType * { return page_id_array_; }
  private:
   // Array members for page data.
   KeyType key_array_[INTERNAL_PAGE_SLOT_CNT];

@@ -150,7 +150,11 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       ctx.write_set_.pop_back();
       split = {cur, right_id, right_page->KeyAt(0)};
     } else {
-      // auto internal_page = reinterpret_cast<InternalPage*>(page);
+      auto internal_page = reinterpret_cast<InternalPage*>(page);
+      auto right_id = bpm_->NewPage();
+      auto right_guard = bpm_->WritePage(right_id);
+      auto right_page = right_guard.AsMut<InternalPage>();
+      right_page->Init(internal_max_size_);
     }
   }
   return true;
@@ -249,8 +253,8 @@ auto BPLUSTREE_TYPE::KeyIndex(const BPlusTreePage* page, const KeyType &key) -> 
   // 对于内部节点，返回的位置是小于等于key的最大的位置
   else {
     auto internal_page = reinterpret_cast<const InternalPage*>(page);
-    for (int i = internal_page->GetSize(); i > 0; i --) {
-      if (comparator_(internal_page->KeyAt(i - 1), key) <= 0) {
+    for (int i = internal_page->GetSize() - 1; i > 0; i --) {
+      if (comparator_(internal_page->KeyAt(i), key) <= 0) {
         return i;
       }
     }
