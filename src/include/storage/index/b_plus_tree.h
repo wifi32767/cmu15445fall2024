@@ -154,7 +154,7 @@ class BPlusTree {
    */
   auto ToPrintableBPlusTree(page_id_t root_id) -> PrintableBPlusTree;
 
-  auto KeyIndex(const BPlusTreePage* page, const KeyType &key) -> int;
+  auto KeyIndex(const BPlusTreePage *page, const KeyType &key) -> int;
 
   // member variable
   std::string index_name_;

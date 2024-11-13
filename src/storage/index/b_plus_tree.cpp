@@ -1,5 +1,8 @@
 #include "storage/index/b_plus_tree.h"
+#include <iostream>
+#include <ostream>
 #include "storage/index/b_plus_tree_debug.h"
+#include "storage/page/page_guard.h"
 using std::cout, std::endl;
 namespace bustub {
 
@@ -40,26 +43,26 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   // Declaration of context instance.
   Context ctx;
   ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
-  ctx.AddIntoReadSet(std::move(guard));
   auto root_page = guard.As<BPlusTreeHeaderPage>();
+  ctx.AddIntoReadSet(std::move(guard));
   if (root_page->root_page_id_ == INVALID_PAGE_ID) {
     return false;
   }
   auto cur = root_page->root_page_id_;
-  while (cur != INVALID_PAGE_ID){
+  while (cur != INVALID_PAGE_ID) {
     guard = bpm_->ReadPage(cur);
     auto page = guard.As<BPlusTreePage>();
     ctx.AddIntoReadSet(std::move(guard));
     if (page->IsLeafPage()) {
-      int id = KeyIndex(page, key);
-      if (id == -1) {
+      int idx = KeyIndex(page, key);
+      if (idx == -1) {
         return false;
       }
-      result->push_back(reinterpret_cast<const LeafPage*>(page)->ValueAt(id));
+      result->push_back(reinterpret_cast<const LeafPage *>(page)->ValueAt(idx));
       return true;
     }
-    int id = KeyIndex(page, key);
-    cur = reinterpret_cast<const InternalPage*>(page)->ValueAt(id);
+    int idx = KeyIndex(page, key);
+    cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(idx);
   }
   return false;
 }
@@ -97,21 +100,21 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   auto page = guard.AsMut<BPlusTreePage>();
   ctx.AddIntoWriteSet(std::move(guard));
   while (!page->IsLeafPage()) {
-    int id = KeyIndex(page, key);
-    cur = reinterpret_cast<const InternalPage*>(page)->ValueAt(id);
+    int idx = KeyIndex(page, key);
+    cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(idx);
     guard = bpm_->WritePage(cur);
     page = guard.AsMut<BPlusTreePage>();
     ctx.AddIntoWriteSet(std::move(guard));
   }
   guard = std::move(ctx.write_set_.back());
-  page = guard.AsMut<BPlusTreePage>();
   ctx.write_set_.pop_back();
-  auto leaf_page = reinterpret_cast<LeafPage*>(page);
-  int id = KeyIndex(page, key);
-  if (id < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(id), key) == 0) {
+  page = guard.AsMut<BPlusTreePage>();
+  auto leaf_page = reinterpret_cast<LeafPage *>(page);
+  int idx = KeyIndex(page, key);
+  if (idx < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(idx), key) == 0) {
     return false;
   }
-  leaf_page->Insert(id, key, value);
+  leaf_page->Insert(idx, key, value);
   // 分裂
   while (page->GetSize() > page->GetMaxSize()) {
     if (page->IsLeafPage()) {
@@ -121,7 +124,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       right_page->Init(leaf_max_size_);
       right_page->SetNextPageId(leaf_page->GetNextPageId());
       leaf_page->SetNextPageId(right_id);
-      right_page->SetKVs(leaf_page->GetKeys() + leaf_page->GetMinSize(), leaf_page->GetValues() + leaf_page->GetMinSize(), leaf_page->GetSize() - leaf_page->GetMinSize());
+      right_page->SetKVs(leaf_page->GetKeys() + leaf_page->GetMinSize(),
+                         leaf_page->GetValues() + leaf_page->GetMinSize(),
+                         leaf_page->GetSize() - leaf_page->GetMinSize());
       right_page->SetParentPageId(leaf_page->GetParentPageId());
       leaf_page->SetSize(leaf_page->GetMinSize());
       // 如果是根节点
@@ -140,22 +145,24 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
         return true;
       }
       guard = std::move(ctx.write_set_.back());
+      ctx.write_set_.pop_back();
       page = guard.AsMut<BPlusTreePage>();
       cur = guard.GetPageId();
-      ctx.write_set_.pop_back();
-      auto parent_page = reinterpret_cast<InternalPage*>(page);
-      int id = KeyIndex(page, right_page->KeyAt(0));
-      parent_page->InsertValue(id + 1, right_id);
-      parent_page->InsertKey(id + 1, right_page->KeyAt(0));
+      auto parent_page = reinterpret_cast<InternalPage *>(page);
+      int idx = KeyIndex(page, right_page->KeyAt(0));
+      parent_page->InsertValue(idx + 1, right_id);
+      parent_page->InsertKey(idx + 1, right_page->KeyAt(0));
     } else {
-      auto internal_page = reinterpret_cast<InternalPage*>(page);
+      auto internal_page = reinterpret_cast<InternalPage *>(page);
       auto right_id = bpm_->NewPage();
       auto right_guard = bpm_->WritePage(right_id);
       auto right_page = right_guard.AsMut<InternalPage>();
       auto mid_key = internal_page->KeyAt(internal_page->GetMinSize());
       right_page->Init(internal_max_size_);
-      right_page->SetKeys(internal_page->GetKeys() + internal_page->GetMinSize(), internal_page->GetSize() - internal_page->GetMinSize());
-      right_page->SetValues(internal_page->GetValues() + internal_page->GetMinSize(), internal_page->GetSize() - internal_page->GetMinSize());
+      right_page->SetKeys(internal_page->GetKeys() + internal_page->GetMinSize(),
+                          internal_page->GetSize() - internal_page->GetMinSize());
+      right_page->SetValues(internal_page->GetValues() + internal_page->GetMinSize(),
+                            internal_page->GetSize() - internal_page->GetMinSize());
       right_page->SetSize(internal_page->GetSize() - internal_page->GetMinSize());
       right_page->SetParentPageId(internal_page->GetParentPageId());
       internal_page->SetSize(internal_page->GetMinSize());
@@ -174,13 +181,13 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
         return true;
       }
       guard = std::move(ctx.write_set_.back());
+      ctx.write_set_.pop_back();
       page = guard.AsMut<BPlusTreePage>();
       cur = guard.GetPageId();
-      ctx.write_set_.pop_back();
-      auto parent_page = reinterpret_cast<InternalPage*>(page);
-      int id = KeyIndex(page, mid_key);
-      parent_page->InsertValue(id + 1, right_id);
-      parent_page->InsertKey(id + 1, mid_key);
+      auto parent_page = reinterpret_cast<InternalPage *>(page);
+      int idx = KeyIndex(page, mid_key);
+      parent_page->InsertValue(idx + 1, right_id);
+      parent_page->InsertKey(idx + 1, mid_key);
     }
   }
   return true;
@@ -200,7 +207,156 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key) {
   // Declaration of context instance.
   Context ctx;
-  (void)ctx;
+  WritePageGuard guard = bpm_->WritePage(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    return;
+  }
+  auto cur = root_page->root_page_id_;
+  ctx.AddIntoWriteSet(std::move(guard));
+  guard = bpm_->WritePage(cur);
+  auto page = guard.AsMut<BPlusTreePage>();
+  ctx.AddIntoWriteSet(std::move(guard));
+  int lk;
+  int rk;
+  while (!page->IsLeafPage()) {
+    int idx = KeyIndex(page, key);
+    lk = idx - 1, rk = idx + 1;
+    cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(idx);
+    guard = bpm_->WritePage(cur);
+    page = guard.AsMut<BPlusTreePage>();
+    ctx.AddIntoWriteSet(std::move(guard));
+  }
+  guard = std::move(ctx.write_set_.back());
+  ctx.write_set_.pop_back();
+  page = guard.AsMut<BPlusTreePage>();
+  auto leaf_page = reinterpret_cast<LeafPage *>(page);
+  int idx = KeyIndex(page, key);
+  if (!(idx < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(idx), key) == 0)) {
+    return;
+  }
+  leaf_page->Remove(idx);
+  if (cur == root_page->root_page_id_) {
+    if (leaf_page->GetSize() == 0) {
+      root_page->root_page_id_ = INVALID_PAGE_ID;
+      bpm_->DeletePage(cur);
+    }
+    return;
+  }
+  if (leaf_page->GetSize() >= leaf_page->GetMinSize()) {
+    return;
+  }
+  auto parent_page = ctx.write_set_.back().AsMut<InternalPage>();
+  if (lk >= 0) {
+    auto left_guard = bpm_->WritePage(parent_page->ValueAt(lk));
+    auto left_page = left_guard.template AsMut<LeafPage>();
+    if (left_page->GetSize() > left_page->GetMinSize()) {
+      leaf_page->Insert(0, left_page->KeyAt(left_page->GetSize() - 1), left_page->ValueAt(left_page->GetSize() - 1));
+      parent_page->SetKeyAt(lk + 1, left_page->KeyAt(left_page->GetSize() - 1));
+      left_page->Remove(left_page->GetSize() - 1);
+      return;
+    }
+  }
+  if (rk < parent_page->GetSize()) {
+    auto right_guard = bpm_->WritePage(parent_page->ValueAt(rk));
+    auto right_page = right_guard.template AsMut<LeafPage>();
+    if (right_page->GetSize() > right_page->GetMinSize()) {
+      leaf_page->Insert(leaf_page->GetSize(), right_page->KeyAt(0), right_page->ValueAt(0));
+      right_page->Remove(0);
+      parent_page->SetKeyAt(rk, right_page->KeyAt(0));
+      return;
+    }
+  }
+  if (lk >= 0) {
+    auto left_guard = bpm_->WritePage(parent_page->ValueAt(lk));
+    auto left_page = left_guard.template AsMut<LeafPage>();
+    left_page->Insert(left_page->GetSize(), leaf_page->GetKeys(), leaf_page->GetValues(), leaf_page->GetSize());
+    left_page->SetNextPageId(leaf_page->GetNextPageId());
+    leaf_page->SetSize(0);
+  } else if (rk <= parent_page->GetSize()) {
+    auto right_guard = bpm_->WritePage(parent_page->ValueAt(rk));
+    auto right_page = right_guard.template AsMut<LeafPage>();
+    leaf_page->Insert(leaf_page->GetSize(), right_page->GetKeys(), right_page->GetValues(), right_page->GetSize());
+    leaf_page->SetNextPageId(right_page->GetNextPageId());
+    right_page->SetSize(0);
+  }
+  guard = std::move(ctx.write_set_.back());
+  ctx.write_set_.pop_back();
+  auto cur_page = guard.template AsMut<InternalPage>();
+  auto child_idx = lk + 1;
+  InternalPage *child_page = nullptr;
+  while (true) {
+    if (ctx.write_set_.empty() and cur_page->GetSize() == 1) {
+      bpm_->DeletePage(cur_page->ValueAt(child_idx));
+      root_page->root_page_id_ = cur_page->ValueAt(1 - child_idx);
+      bpm_->DeletePage(guard.GetPageId());
+      break;
+    }
+    cur_page->RemoveKey(std::max(1, child_idx));
+    cur_page->RemoveValue(child_idx);
+    if (cur_page->GetSize() >= cur_page->GetMinSize()) {
+      break;
+    }
+    if (ctx.write_set_.empty()) {
+      break;
+    }
+    guard = std::move(ctx.write_set_.back());
+    ctx.write_set_.pop_back();
+    auto cur_key = cur_page->KeyAt(1);
+    child_page = cur_page;
+    cur_page = guard.template AsMut<InternalPage>();
+    child_idx = KeyIndex(cur_page, cur_key);
+    lk = child_idx - 1, rk = child_idx + 1;
+    if (lk >= 0) {
+      auto left_guard = bpm_->WritePage(cur_page->ValueAt(lk));
+      auto left_inter_page = left_guard.template AsMut<InternalPage>();
+      if (left_inter_page->GetSize() > left_inter_page->GetMinSize()) {
+        child_page->InsertValue(0, left_inter_page->ValueAt(left_inter_page->GetSize() - 1));
+        child_page->InsertKey(1, left_inter_page->KeyAt(left_inter_page->GetSize() - 1));
+        left_inter_page->RemoveKey(left_inter_page->GetSize() - 1);
+        left_inter_page->RemoveValue(left_inter_page->GetSize() - 1);
+        break;
+      }
+    }
+    if (rk < cur_page->GetSize()) {
+      auto right_guard = bpm_->WritePage(cur_page->ValueAt(rk));
+      auto right_inter_page = right_guard.template AsMut<InternalPage>();
+      if (right_inter_page->GetSize() > right_inter_page->GetMinSize()) {
+        child_page->InsertValue(child_page->GetSize(), right_inter_page->ValueAt(0));
+        child_page->InsertKey(child_page->GetSize(), right_inter_page->KeyAt(1));
+        right_inter_page->RemoveKey(1);
+        right_inter_page->RemoveValue(0);
+        break;
+      }
+    }
+    if (lk >= 0) {
+      auto left_guard = bpm_->WritePage(cur_page->ValueAt(lk));
+      auto left_inter_page = left_guard.template AsMut<InternalPage>();
+      int sz = child_page->GetSize();
+      for (int i = 0; i < child_page->GetSize() + 1; i++) {
+        left_inter_page->InsertValue(left_inter_page->GetSize(), child_page->ValueAt(i));
+      }
+      left_inter_page->InsertKey(sz++, cur_page->KeyAt(lk + 1));
+      for (int i = 0; i < child_page->GetSize(); i++) {
+        left_inter_page->InsertKey(sz++, child_page->KeyAt(i));
+      }
+      child_page->SetSize(0);
+      bpm_->DeletePage(guard.GetPageId());
+    } else if (rk < cur_page->GetSize()) {
+      auto right_guard = bpm_->WritePage(cur_page->ValueAt(rk));
+      auto right_inter_page = right_guard.template AsMut<InternalPage>();
+      int sz = child_page->GetSize();
+      for (int i = 0; i < right_inter_page->GetSize() + 1; i++) {
+        child_page->InsertValue(child_page->GetSize(), right_inter_page->ValueAt(i));
+      }
+      child_page->InsertKey(sz++, cur_page->KeyAt(rk));
+      for (int i = 0; i < right_inter_page->GetSize(); i++) {
+        child_page->InsertKey(sz++, right_inter_page->KeyAt(i));
+      }
+      right_inter_page->SetSize(0);
+      bpm_->DeletePage(right_guard.GetPageId());
+    }
+  }
 }
 
 /*****************************************************************************
@@ -265,10 +421,10 @@ auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::KeyIndex(const BPlusTreePage* page, const KeyType &key) -> int {
+auto BPLUSTREE_TYPE::KeyIndex(const BPlusTreePage *page, const KeyType &key) -> int {
   // 对于叶子节点，返回的位置是大于等于key的最小的位置
   if (page->IsLeafPage()) {
-    auto leaf_page = reinterpret_cast<const LeafPage*>(page);
+    auto leaf_page = reinterpret_cast<const LeafPage *>(page);
     for (int i = 0; i < leaf_page->GetSize(); i++) {
       if (comparator_(leaf_page->KeyAt(i), key) >= 0) {
         return i;
@@ -277,15 +433,13 @@ auto BPLUSTREE_TYPE::KeyIndex(const BPlusTreePage* page, const KeyType &key) -> 
     return leaf_page->GetSize();
   }
   // 对于内部节点，返回的位置是小于等于key的最大的位置
-  else {
-    auto internal_page = reinterpret_cast<const InternalPage*>(page);
-    for (int i = internal_page->GetSize() - 1; i > 0; i --) {
-      if (comparator_(internal_page->KeyAt(i), key) <= 0) {
-        return i;
-      }
+  auto internal_page = reinterpret_cast<const InternalPage *>(page);
+  for (int i = internal_page->GetSize() - 1; i > 0; i--) {
+    if (comparator_(internal_page->KeyAt(i), key) <= 0) {
+      return i;
     }
-    return 0;
   }
+  return 0;
   // 理论上二分的效率更高
   // 但是通常使用的时候，maxSize都会设置的比较小
   // 所以直接遍历查找不容易错，说不定还会更快

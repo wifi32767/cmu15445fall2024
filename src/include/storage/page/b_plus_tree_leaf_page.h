@@ -93,8 +93,10 @@ class BPlusTreeLeafPage : public BPlusTreePage {
 
     return kstr;
   }
-  
+
   void Insert(int index, const KeyType &key, const ValueType &value);
+
+  void Insert(int index, const KeyType *keys, const ValueType *values, int size);
 
   void Remove(int index);
 
@@ -102,18 +104,18 @@ class BPlusTreeLeafPage : public BPlusTreePage {
 
   void RemoveFromRight(int size);
 
-  void SetKVs(const KeyType* keys, const ValueType* values, int size);
-  
-  auto GetKeys() const -> const KeyType* { return key_array_; }
+  void SetKVs(const KeyType *keys, const ValueType *values, int size);
 
-  auto GetValues() const -> const ValueType* { return rid_array_; }
+  auto GetKeys() const -> const KeyType * { return key_array_; }
+
+  auto GetValues() const -> const ValueType * { return rid_array_; }
+
  private:
   page_id_t next_page_id_;
   // Array members for page data.
   KeyType key_array_[LEAF_PAGE_SLOT_CNT];
   ValueType rid_array_[LEAF_PAGE_SLOT_CNT];
   // (Fall 2024) Feel free to add more fields and helper functions below if needed
- 
 };
 
 }  // namespace bustub

@@ -35,19 +35,13 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
  * array offset)
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType {
-  return key_array_[index];
-}
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType { return key_array_[index]; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
-  key_array_[index] = key;
-}
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) { key_array_[index] = key; }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
-  return page_id_array_[index];
-}
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { return page_id_array_[index]; }
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertKey(int index, const KeyType &key) {
@@ -70,7 +64,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertValue(int index, const ValueType &val
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveKey(int index) {
-  BUSTUB_ENSURE(index >= 1 && index < GetSize(), "BPlusTreeInternalPage::Remove: pos is out of range");
+  BUSTUB_ENSURE(index >= 1 && index < GetSize(), "BPlusTreeInternalPage::RemoveKey: pos is out of range");
   for (int i = index; i < GetSize() - 1; i++) {
     key_array_[i] = key_array_[i + 1];
   }
@@ -78,7 +72,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveKey(int index) {
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveValue(int index) {
-  BUSTUB_ENSURE(index >= 0 && index < GetSize(), "BPlusTreeInternalPage::Remove: pos is out of range");
+  BUSTUB_ENSURE(index >= 0 && index < GetSize(), "BPlusTreeInternalPage::RemoveValue: pos is out of range");
   for (int i = index; i < GetSize() - 1; i++) {
     page_id_array_[i] = page_id_array_[i + 1];
   }
