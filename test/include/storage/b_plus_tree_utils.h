@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <vector>
 
 #include "buffer/buffer_pool_manager.h"
@@ -29,6 +30,7 @@ bool TreeValuesMatch(BPlusTree<KeyType, KeyValue, KeyComparator> &tree, std::vec
     index_key.SetFromInteger(key);
     tree.GetValue(index_key, &rids);
     if (rids.size() != 1) {
+      std::cout << key << " not in tree" << std::endl;
       return false;
     }
   }
@@ -37,6 +39,7 @@ bool TreeValuesMatch(BPlusTree<KeyType, KeyValue, KeyComparator> &tree, std::vec
     index_key.SetFromInteger(key);
     tree.GetValue(index_key, &rids);
     if (!rids.empty()) {
+      std::cout << key << " in tree" << std::endl;
       return false;
     }
   }

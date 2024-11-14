@@ -12,12 +12,14 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <iostream>
 
 #include "buffer/buffer_pool_manager.h"
 #include "gtest/gtest.h"
 #include "storage/b_plus_tree_utils.h"
 #include "storage/disk/disk_manager_memory.h"
 #include "storage/index/b_plus_tree.h"
+#include "storage/index/generic_key.h"
 #include "test_util.h"  // NOLINT
 
 namespace bustub {
@@ -134,6 +136,7 @@ TEST(BPlusTreeTests, SequentialEdgeMixTest) {  // NOLINT
       tree.Remove(index_key);
       deleted.push_back(key);
       inserted.erase(std::find(inserted.begin(), inserted.end(), key));
+      // std::cout << tree.DrawBPlusTree() << std::endl;
       res = TreeValuesMatch<GenericKey<8>, RID, GenericComparator<8>>(tree, inserted, deleted);
       ASSERT_TRUE(res);
     }

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <ostream>
 #include "storage/index/b_plus_tree_debug.h"
+#include "storage/index/generic_key.h"
 #include "storage/page/page_guard.h"
 
 namespace bustub {
@@ -289,7 +290,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
       bpm_->DeletePage(guard.GetPageId());
       break;
     }
-    cur_page->RemoveKey(std::max(1, child_idx));
+    auto cur_key = cur_page->KeyAt(1);
+    cur_page->RemoveKey(child_idx);
     bpm_->DeletePage(cur_page->ValueAt(child_idx));
     cur_page->RemoveValue(child_idx);
     if (cur_page->GetSize() >= cur_page->GetMinSize()) {
@@ -300,7 +302,6 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
     }
     guard = std::move(ctx.write_set_.back());
     ctx.write_set_.pop_back();
-    auto cur_key = cur_page->KeyAt(1);
     child_page = cur_page;
     cur_page = guard.template AsMut<InternalPage>();
     child_idx = KeyIndex(cur_page, cur_key);
@@ -310,12 +311,13 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
       auto left_inter_page = left_guard.template AsMut<InternalPage>();
       if (left_inter_page->GetSize() > left_inter_page->GetMinSize()) {
         child_page->InsertValue(0, left_inter_page->ValueAt(left_inter_page->GetSize() - 1));
-        auto tem_guard = bpm_->ReadPage(left_inter_page->ValueAt(left_inter_page->GetSize() - 1));
+        auto tem_guard = bpm_->ReadPage(child_page->ValueAt(1));
         if (tem_guard.template As<BPlusTreePage>()->IsLeafPage()) {
-          child_page->InsertKey(1, tem_guard.template As<LeafPage>()->KeyAt(tem_guard.template As<LeafPage>()->GetSize() - 1));
+          child_page->InsertKey(1, tem_guard.template As<LeafPage>()->KeyAt(0));
         } else {
-          child_page->InsertKey(1, tem_guard.template As<InternalPage>()->KeyAt(tem_guard.template As<InternalPage>()->GetSize() - 1));
+          child_page->InsertKey(1, tem_guard.template As<InternalPage>()->KeyAt(1));
         }
+        cur_page->SetKeyAt(child_idx, left_inter_page->KeyAt(left_inter_page->GetSize() - 1));
         left_inter_page->RemoveKey(left_inter_page->GetSize() - 1);
         left_inter_page->RemoveValue(left_inter_page->GetSize() - 1);
         break;
@@ -332,6 +334,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
         } else {
           child_page->InsertKey(1, tem_guard.template As<InternalPage>()->KeyAt(1));
         }
+        cur_page->SetKeyAt(rk, right_inter_page->KeyAt(1));
         right_inter_page->RemoveKey(1);
         right_inter_page->RemoveValue(0);
         break;
@@ -340,27 +343,29 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
     if (lk >= 0) {
       auto left_guard = bpm_->WritePage(cur_page->ValueAt(lk));
       auto left_inter_page = left_guard.template AsMut<InternalPage>();
-      int sz = child_page->GetSize();
-      for (int i = 0; i < child_page->GetSize() + 1; i++) {
-        left_inter_page->InsertValue(left_inter_page->GetSize(), child_page->ValueAt(i));
-      }
-      left_inter_page->InsertKey(sz++, cur_page->KeyAt(lk + 1));
+      left_inter_page->InsertKey(left_inter_page->GetSize(), cur_page->KeyAt(lk + 1));
       for (int i = 0; i < child_page->GetSize(); i++) {
-        left_inter_page->InsertKey(sz++, child_page->KeyAt(i));
+        left_inter_page->InsertValue(left_inter_page->GetSize(), child_page->ValueAt(i));
+        if (i < child_page->GetSize() - 1) {
+          left_inter_page->InsertKey(left_inter_page->GetSize(), child_page->KeyAt(i + 1));
+        }
       }
       child_page->SetSize(0);
+      bpm_->DeletePage(cur_page->ValueAt(child_idx));
+      child_idx = lk + 1;
     } else if (rk < cur_page->GetSize()) {
       auto right_guard = bpm_->WritePage(cur_page->ValueAt(rk));
       auto right_inter_page = right_guard.template AsMut<InternalPage>();
-      int sz = child_page->GetSize();
-      for (int i = 0; i < right_inter_page->GetSize() + 1; i++) {
-        child_page->InsertValue(child_page->GetSize(), right_inter_page->ValueAt(i));
-      }
-      child_page->InsertKey(sz++, cur_page->KeyAt(rk));
+      child_page->InsertKey(child_page->GetSize(), cur_page->KeyAt(rk));
       for (int i = 0; i < right_inter_page->GetSize(); i++) {
-        child_page->InsertKey(sz++, right_inter_page->KeyAt(i));
+        child_page->InsertValue(child_page->GetSize(), right_inter_page->ValueAt(i));
+        if (i < right_inter_page->GetSize() - 1) {
+          child_page->InsertKey(child_page->GetSize(), right_inter_page->KeyAt(i + 1));
+        }
       }
       right_inter_page->SetSize(0);
+      bpm_->DeletePage(right_guard.GetPageId());
+      child_idx = rk;
     }
   }
 }

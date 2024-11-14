@@ -45,11 +45,14 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   if (index_ >= page->GetSize()) {
     page_id_ = page->GetNextPageId();
     index_ = 0;
-    page = bpm_->ReadPage(page_id_).As<LeafPage>();
+    if (page_id_ != INVALID_PAGE_ID) {
+      page = bpm_->ReadPage(page_id_).As<LeafPage>();
+    }
   }
   if (page_id_ != INVALID_PAGE_ID) {
     data_ = std::make_pair(page->KeyAt(index_), page->ValueAt(index_));
   } else {
+    index_ = -1;
     data_ = std::make_pair(KeyType(), ValueType());
   }
   return *this;
