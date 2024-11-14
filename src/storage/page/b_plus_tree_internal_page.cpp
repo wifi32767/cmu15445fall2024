@@ -28,7 +28,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
   SetPageType(IndexPageType::INTERNAL_PAGE);
   SetSize(0);
   SetMaxSize(max_size);
-  SetParentPageId(INVALID_PAGE_ID);
 }
 /*
  * Helper method to get/set the key associated with input "index" (a.k.a

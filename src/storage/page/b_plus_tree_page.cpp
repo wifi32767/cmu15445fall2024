@@ -41,13 +41,9 @@ void BPlusTreePage::SetMaxSize(int size) { max_size_ = size; }
  */
 auto BPlusTreePage::GetMinSize() const -> int {
   if (IsLeafPage()) {
-    return max_size_ / 2;
+    return (max_size_ - 1) / 2;
   }
   return (max_size_ + 1) / 2;
 }
-
-auto BPlusTreePage::GetParentPageId() const -> page_id_t { return parent_page_id_; }
-
-void BPlusTreePage::SetParentPageId(page_id_t parent_page_id) { parent_page_id_ = parent_page_id; }
 
 }  // namespace bustub
