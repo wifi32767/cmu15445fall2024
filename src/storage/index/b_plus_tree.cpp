@@ -3,7 +3,7 @@
 #include <ostream>
 #include "storage/index/b_plus_tree_debug.h"
 #include "storage/page/page_guard.h"
-using std::cout, std::endl;
+
 namespace bustub {
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -375,29 +375,24 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
-  // Context ctx;
-  // ReadPageGuard guard = bpm_->ReadPage(header_page_id_);
-  // auto root_page = guard.As<BPlusTreeHeaderPage>();
-  // if (root_page->root_page_id_ == INVALID_PAGE_ID) {
-  //   return INDEXITERATOR_TYPE();
-  // }
-  // auto cur = root_page->root_page_id_;
-  // while (cur != INVALID_PAGE_ID){
-  //   guard = bpm_->ReadPage(cur);
-  //   auto page = guard.As<BPlusTreePage>();
-  //   ctx.AddIntoReadSet(std::move(guard));
-  //   if (page->IsLeafPage()) {
-  //     auto leaf_page = reinterpret_cast<BPlusTreeLeafPage*>(page);
-  //     auto key = leaf_page->KeyAt(0);
-  //     auto value = leaf_page->ValueAt(0);
-  //     return INDEXITERATOR_TYPE(key, value, comparator_, bpm_);
-  //   }
-  //   else {
-  //     auto internal_page = reinterpret_cast<BPlusTreeInternalPage*>(page);
-  //     cur = internal_page->ValueAt(0);
-  //   }
-  // }
-  return INDEXITERATOR_TYPE();
+  Context ctx;
+  auto root_guard = bpm_->ReadPage(header_page_id_);
+  auto root_page = root_guard.As<BPlusTreeHeaderPage>();
+  ReadPageGuard guard;
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    return INDEXITERATOR_TYPE();
+  }
+  auto cur = root_page->root_page_id_;
+  guard = bpm_->ReadPage(cur);
+  auto page = guard.As<BPlusTreePage>();
+  ctx.AddIntoReadSet(std::move(guard));
+  while (!page->IsLeafPage()) {
+    cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(0);
+    guard = bpm_->ReadPage(cur);
+    page = guard.As<BPlusTreePage>();
+    ctx.AddIntoReadSet(std::move(guard));
+  }
+  return INDEXITERATOR_TYPE(bpm_, cur, 0);
 }
 
 /*
@@ -406,7 +401,35 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  Context ctx;
+  auto root_guard = bpm_->ReadPage(header_page_id_);
+  auto root_page = root_guard.As<BPlusTreeHeaderPage>();
+  ReadPageGuard guard;
+  if (root_page->root_page_id_ == INVALID_PAGE_ID) {
+    return End();
+  }
+  auto cur = root_page->root_page_id_;
+  guard = bpm_->ReadPage(cur);
+  auto page = guard.As<BPlusTreePage>();
+  ctx.AddIntoReadSet(std::move(guard));
+  while (!page->IsLeafPage()) {
+    int idx = KeyIndex(page, key);
+    cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(idx);
+    guard = bpm_->ReadPage(cur);
+    page = guard.As<BPlusTreePage>();
+    ctx.AddIntoReadSet(std::move(guard));
+  }
+  guard = std::move(ctx.read_set_.back());
+  ctx.read_set_.pop_back();
+  page = guard.As<BPlusTreePage>();
+  auto leaf_page = reinterpret_cast<const LeafPage *>(page);
+  int idx = KeyIndex(page, key);
+  if (idx < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(idx), key) == 0) {
+    return INDEXITERATOR_TYPE(bpm_, cur, idx);
+  }
+  return End();
+}
 
 /*
  * Input parameter is void, construct an index iterator representing the end
@@ -414,7 +437,9 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return IN
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  return INDEXITERATOR_TYPE(bpm_, INVALID_PAGE_ID, -1);
+}
 
 /**
  * @return Page id of the root of this tree
