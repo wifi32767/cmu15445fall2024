@@ -116,14 +116,6 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   void RemoveValue(int index);
 
-  void RemoveKeysFromLeft(int size);
-
-  void RemoveKeysFromRight(int size);
-
-  void RemoveValuesFromLeft(int size);
-
-  void RemoveValuesFromRight(int size);
-
   void SetKeys(const KeyType *keys, int keys_size);
 
   void SetValues(const ValueType *values, int values_size);

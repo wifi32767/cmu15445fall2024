@@ -14,6 +14,7 @@
 
 #include "common/exception.h"
 #include "storage/page/b_plus_tree_internal_page.h"
+#include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
 /*****************************************************************************
@@ -44,7 +45,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { ret
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertKey(int index, const KeyType &key) {
-  BUSTUB_ENSURE(index >= 1 && index <= GetSize(), "BPlusTreeInternalPage::Insert: pos is out of range");
+  BUSTUB_ENSURE(index >= 1 && index <= GetSize(), "BPlusTreeInternalPage::InsertKey: pos is out of range");
   for (int i = GetSize(); i > index; i--) {
     key_array_[i] = key_array_[i - 1];
   }
@@ -53,12 +54,13 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertKey(int index, const KeyType &key) {
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertValue(int index, const ValueType &value) {
-  BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeInternalPage::Insert: pos is out of range");
+  BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeInternalPage::InsertValue: pos is out of range");
   for (int i = GetSize(); i > index; i--) {
     page_id_array_[i] = page_id_array_[i - 1];
   }
   page_id_array_[index] = value;
   ChangeSizeBy(1);
+  // BUSTUB_ENSURE(GetSize() < INTERNAL_PAGE_SLOT_CNT, "BPlusTreeInternalPage::InsertValue: size is out of range");
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -76,36 +78,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveValue(int index) {
     page_id_array_[i] = page_id_array_[i + 1];
   }
   ChangeSizeBy(-1);
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveKeysFromLeft(int size) {
-  BUSTUB_ENSURE(size > 0 && size < GetSize(), "BPlusTreeInternalPage::RemoveKeysFromLeft: size is out of range");
-  for (int i = 1; i < GetSize() - size; i++) {
-    key_array_[i] = key_array_[i + size];
-  }
-  // pass
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveKeysFromRight(int size) {
-  BUSTUB_ENSURE(size > 0 && size < GetSize(), "BPlusTreeInternalPage::RemoveKeysFromRight: size is out of range");
-  // pass
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveValuesFromLeft(int size) {
-  BUSTUB_ENSURE(size > 0 && size <= GetSize(), "BPlusTreeInternalPage::RemoveValuesFromLeft: size is out of range");
-  for (int i = 0; i < GetSize() - size; i++) {
-    page_id_array_[i] = page_id_array_[i + size];
-  }
-  ChangeSizeBy(-size);
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveValuesFromRight(int size) {
-  BUSTUB_ENSURE(size > 0 && size <= GetSize(), "BPlusTreeInternalPage::RemoveValuesFromRight: size is out of range");
-  ChangeSizeBy(-size);
 }
 
 INDEX_TEMPLATE_ARGUMENTS

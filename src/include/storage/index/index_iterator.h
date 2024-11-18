@@ -23,6 +23,7 @@ namespace bustub {
 INDEX_TEMPLATE_ARGUMENTS
 class IndexIterator {
   using LeafPage = BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>;
+
  public:
   // you may define your own constructor based on your member variables
   IndexIterator();
@@ -39,9 +40,7 @@ class IndexIterator {
     return (bpm_ == itr.bpm_) && (page_id_ == itr.page_id_) && (index_ == itr.index_);
   }
 
-  auto operator!=(const IndexIterator &itr) const -> bool {
-    return !(*this == itr);
-  }
+  auto operator!=(const IndexIterator &itr) const -> bool { return !(*this == itr); }
 
  private:
   page_id_t page_id_;

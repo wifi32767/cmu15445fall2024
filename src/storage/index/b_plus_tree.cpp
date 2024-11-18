@@ -1,8 +1,6 @@
 #include "storage/index/b_plus_tree.h"
-#include <iostream>
-#include <ostream>
+#include "common/macros.h"
 #include "storage/index/b_plus_tree_debug.h"
-#include "storage/index/generic_key.h"
 #include "storage/page/page_guard.h"
 
 namespace bustub {
@@ -263,7 +261,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
       return;
     }
   }
-  int child_idx;
+  int child_idx = -1;
   if (lk >= 0) {
     auto left_guard = bpm_->WritePage(parent_page->ValueAt(lk));
     auto left_page = left_guard.template AsMut<LeafPage>();
@@ -279,7 +277,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
     right_page->SetSize(0);
     child_idx = rk;
   }
+  BUSTUB_ENSURE(child_idx != -1, "BPlusTree::Remove: child_idx should not be -1");
   guard = std::move(ctx.write_set_.back());
+  WritePageGuard pre_guard;
   ctx.write_set_.pop_back();
   auto cur_page = guard.template AsMut<InternalPage>();
   InternalPage *child_page = nullptr;
@@ -300,6 +300,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
     if (ctx.write_set_.empty()) {
       break;
     }
+    pre_guard = std::move(guard);
     guard = std::move(ctx.write_set_.back());
     ctx.write_set_.pop_back();
     child_page = cur_page;
@@ -311,12 +312,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
       auto left_inter_page = left_guard.template AsMut<InternalPage>();
       if (left_inter_page->GetSize() > left_inter_page->GetMinSize()) {
         child_page->InsertValue(0, left_inter_page->ValueAt(left_inter_page->GetSize() - 1));
-        auto tem_guard = bpm_->ReadPage(child_page->ValueAt(1));
-        if (tem_guard.template As<BPlusTreePage>()->IsLeafPage()) {
-          child_page->InsertKey(1, tem_guard.template As<LeafPage>()->KeyAt(0));
-        } else {
-          child_page->InsertKey(1, tem_guard.template As<InternalPage>()->KeyAt(1));
-        }
+        child_page->InsertKey(1, cur_page->KeyAt(lk + 1));
         cur_page->SetKeyAt(child_idx, left_inter_page->KeyAt(left_inter_page->GetSize() - 1));
         left_inter_page->RemoveKey(left_inter_page->GetSize() - 1);
         left_inter_page->RemoveValue(left_inter_page->GetSize() - 1);
@@ -328,12 +324,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
       auto right_inter_page = right_guard.template AsMut<InternalPage>();
       if (right_inter_page->GetSize() > right_inter_page->GetMinSize()) {
         child_page->InsertValue(child_page->GetSize(), right_inter_page->ValueAt(0));
-        auto tem_guard = bpm_->ReadPage(right_inter_page->ValueAt(0));
-        if (tem_guard.template As<BPlusTreePage>()->IsLeafPage()) {
-          child_page->InsertKey(1, tem_guard.template As<LeafPage>()->KeyAt(0));
-        } else {
-          child_page->InsertKey(1, tem_guard.template As<InternalPage>()->KeyAt(1));
-        }
+        child_page->InsertKey(child_page->GetSize() - 1, cur_page->KeyAt(rk));
         cur_page->SetKeyAt(rk, right_inter_page->KeyAt(1));
         right_inter_page->RemoveKey(1);
         right_inter_page->RemoveValue(0);
@@ -442,9 +433,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
-  return INDEXITERATOR_TYPE(bpm_, INVALID_PAGE_ID, -1);
-}
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(bpm_, INVALID_PAGE_ID, -1); }
 
 /**
  * @return Page id of the root of this tree

@@ -128,6 +128,7 @@ auto BufferPoolManager::Size() const -> size_t { return num_frames_; }
 auto BufferPoolManager::NewPage() -> page_id_t {
   auto page_id = AllocatePage();
   disk_scheduler_->IncreaseDiskSpace(page_id);
+  // std::cerr << page_id << std::endl;
   return page_id;
 }
 

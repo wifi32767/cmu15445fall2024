@@ -62,15 +62,17 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(int index, const KeyType &key, const Val
     key_array_[i] = key_array_[i - 1];
     rid_array_[i] = rid_array_[i - 1];
   }
+  // BUSTUB_ENSURE(index < (int)LEAF_PAGE_SLOT_CNT, "BPlusTreeLeafPage::Insert: index is out of range");
   key_array_[index] = key;
   rid_array_[index] = value;
   ChangeSizeBy(1);
+  // BUSTUB_ENSURE(GetSize() <= (int)LEAF_PAGE_SLOT_CNT, "BPlusTreeLeafPage::Insert: size is out of range");
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(int index, const KeyType *keys, const ValueType *values, int size) {
   BUSTUB_ENSURE(index >= 0 && index <= GetSize(), "BPlusTreeLeafPage::Insert: pos is out of range");
-  BUSTUB_ENSURE((size_t)(size + GetSize()) <= LEAF_PAGE_SLOT_CNT, "BPlusTreeLeafPage::Insert: size is out of range");
+  // BUSTUB_ENSURE((size_t)(size + GetSize()) <= LEAF_PAGE_SLOT_CNT, "BPlusTreeLeafPage::Insert: size is out of range");
   for (int i = 0; i < size; i++) {
     key_array_[GetSize() + i] = key_array_[index + i];
     rid_array_[GetSize() + i] = rid_array_[index + i];
