@@ -1,7 +1,10 @@
 #include "storage/index/b_plus_tree.h"
+#include <iostream>
+#include <ostream>
 #include "common/macros.h"
 #include "storage/index/b_plus_tree_debug.h"
 #include "storage/page/page_guard.h"
+#include "storage/page/table_page.h"
 
 namespace bustub {
 
@@ -117,9 +120,12 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   if (idx < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(idx), key) == 0) {
     return false;
   }
-  leaf_page->Insert(idx, key, value);
+  if (leaf_page->GetSize() < leaf_page->GetMaxSize()) {
+    leaf_page->Insert(idx, key, value);
+    return true;
+  }
   // 分裂
-  while (page->GetSize() > page->GetMaxSize()) {
+  while (page->GetSize() >= page->GetMaxSize()) {
     if (page->IsLeafPage()) {
       auto right_id = bpm_->NewPage();
       auto right_guard = bpm_->WritePage(right_id);
@@ -131,6 +137,11 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
                          leaf_page->GetValues() + leaf_page->GetSize() / 2,
                          leaf_page->GetSize() - leaf_page->GetSize() / 2);
       leaf_page->SetSize(leaf_page->GetSize() / 2);
+      if (idx <= leaf_page->GetSize()) {
+        leaf_page->Insert(idx, key, value);
+      } else {
+        right_page->Insert(idx - leaf_page->GetSize(), key, value);
+      }
       // 如果是根节点
       if (root_page->root_page_id_ == guard.GetPageId()) {
         auto pre_id = bpm_->NewPage();
@@ -148,10 +159,13 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       page = guard.AsMut<BPlusTreePage>();
       cur = guard.GetPageId();
       auto parent_page = reinterpret_cast<InternalPage *>(page);
-      int idx = KeyIndex(page, right_page->KeyAt(0));
-      parent_page->InsertValue(idx + 1, right_id);
-      parent_page->InsertKey(idx + 1, right_page->KeyAt(0));
+      idx = KeyIndex(page, right_page->KeyAt(0)) + 1;
+      parent_page->InsertValue(idx, right_id);
+      parent_page->InsertKey(idx, right_page->KeyAt(0));
     } else {
+      if (page->GetSize() <= page->GetMaxSize()) {
+        return true;
+      }
       auto internal_page = reinterpret_cast<InternalPage *>(page);
       auto right_id = bpm_->NewPage();
       auto right_guard = bpm_->WritePage(right_id);
@@ -180,9 +194,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
       page = guard.AsMut<BPlusTreePage>();
       cur = guard.GetPageId();
       auto parent_page = reinterpret_cast<InternalPage *>(page);
-      int idx = KeyIndex(page, mid_key);
-      parent_page->InsertValue(idx + 1, right_id);
-      parent_page->InsertKey(idx + 1, mid_key);
+      idx = KeyIndex(page, mid_key) + 1;
+      parent_page->InsertValue(idx, right_id);
+      parent_page->InsertKey(idx, mid_key);
     }
   }
   return true;
