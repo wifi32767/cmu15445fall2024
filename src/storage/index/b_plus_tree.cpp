@@ -110,6 +110,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(idx);
     guard = bpm_->WritePage(cur);
     page = guard.AsMut<BPlusTreePage>();
+    if (page->GetSize() + 1 < page->GetMaxSize()) {
+      ctx.ClearWriteSet();
+    }
     ctx.AddIntoWriteSet(std::move(guard));
   }
   guard = std::move(ctx.write_set_.back());
@@ -233,6 +236,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
     cur = reinterpret_cast<const InternalPage *>(page)->ValueAt(idx);
     guard = bpm_->WritePage(cur);
     page = guard.AsMut<BPlusTreePage>();
+    if (page->GetSize() - 1 >= page->GetMinSize()) {
+      ctx.ClearWriteSet();
+    }
     ctx.AddIntoWriteSet(std::move(guard));
   }
   guard = std::move(ctx.write_set_.back());

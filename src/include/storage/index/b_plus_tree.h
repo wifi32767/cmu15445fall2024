@@ -59,6 +59,10 @@ class Context {
 
   void AddIntoReadSet(ReadPageGuard &&guard) { read_set_.push_back(std::move(guard)); }
 
+  void ClearWriteSet() { write_set_.clear(); }
+
+  void ClearReadSet() { read_set_.clear(); }
+
   void Drop() {
     header_page_ = std::nullopt;
     write_set_.clear();
